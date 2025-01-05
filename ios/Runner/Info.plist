@@ -24,6 +24,17 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Your app requires microphone access to record audio.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Your app requires camera access to take photos or videos.</string>
+    <key>NSUserNotificationUsageDescription</key>
+    <string>Your app requires notification access to schedule alerts.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+        <string>voip</string>
+    </array>
 	<key>NSCameraUsageDescription</key>
     <string>We need camera access for video calls.</string>
     <key>NSMicrophoneUsageDescription</key>

@@ -38,8 +38,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   @override
-  void dispose() {
-    _dispose();
+  void dispose() async {
+    await _engine.leaveChannel();
+    await _engine.release();
     super.dispose();
   }
 
@@ -252,24 +253,26 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAgoraEngine({bool isVideoCall = true}) async {
-    // await [Permission.microphone, Permission.camera].request();
-    _engine = createAgoraRtcEngine();
-    await _engine.initialize(const RtcEngineContext(
-      appId: appId,
-      channelProfile: ChannelProfileType.channelProfileCommunication,
-    ));
-    await _engine.joinChannel(
-      token: token,
-      channelId: channel,
-      options: const ChannelMediaOptions(
-        autoSubscribeVideo: true,
-        autoSubscribeAudio: true,
-        publishCameraTrack: true,
-        publishMicrophoneTrack: true,
-        clientRoleType: ClientRoleType.clientRoleBroadcaster,
-      ),
-      uid: 0,
-    );
+    if (true) {
+      _engine = createAgoraRtcEngine();
+      await _engine.initialize(const RtcEngineContext(
+        appId: appId,
+        channelProfile: ChannelProfileType.channelProfileCommunication,
+      ));
+      await _engine.joinChannel(
+        token: token,
+        channelId: channel,
+        options: const ChannelMediaOptions(
+          autoSubscribeVideo: true,
+          autoSubscribeAudio: true,
+          publishCameraTrack: true,
+          publishMicrophoneTrack: true,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
+        uid: 0,
+      );
+    }
+
     _engine.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
@@ -286,15 +289,20 @@ class _MyHomePageState extends State<MyHomePage> {
             if (!startCalling) {
               await callDialog().then((val) async {
                 if (val) {
+                  startCalling = true;
                   await _engine.enableVideo(); // Start with video enabled
                   await _engine.startPreview();
                 }
               });
+              setState(() {
+                _remoteUid = remoteUid;
+              });
+            } else {
+              setState(() {
+                startCalling = false;
+                _remoteUid = remoteUid;
+              });
             }
-            setState(() {
-              startCalling = true;
-              _remoteUid = remoteUid;
-            });
           }
         },
         onRemoteVideoStats:
@@ -305,6 +313,7 @@ class _MyHomePageState extends State<MyHomePage> {
             UserOfflineReasonType reason) {
           debugPrint("remote user $remoteUid left channel 34");
           callDisconnect();
+          // initAgoraEngine();
         },
       ),
     );
@@ -313,8 +322,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<bool> callDialog() async {
     final AudioPlayer _audioPlayer =
         AudioPlayer(); // Create an instance of AudioPlayer
-    await _audioPlayer.play(AssetSource(
-        'audio/ring_tone.mp3')); // Replace with the path of your audio file
+    await _audioPlayer.play(AssetSource('audio/ring_tone.mp3'),
+        volume: 100); // Replace with the path of your audio file
 
     final res = await showDialog(
       context: context,
@@ -368,27 +377,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> initAgora({required bool isVideoC}) async {
-    // _engine = createAgoraRtcEngine();
-    // await _engine.initialize(const RtcEngineContext(
-    //   appId: appId,
-    //   channelProfile: ChannelProfileType.channelProfileCommunication,
-    // ));
     await _engine.enableVideo(); // Start with video enabled
     await _engine.startPreview();
-
-    // await _engine.joinChannel(
-    //   token: token,
-    //   channelId: channel,
-    //   options: const ChannelMediaOptions(
-    //     autoSubscribeVideo: true,
-    //     autoSubscribeAudio: true,
-    //     publishCameraTrack: true,
-    //     publishMicrophoneTrack: true,
-    //     clientRoleType: ClientRoleType.clientRoleBroadcaster,
-    //   ),
-    //   uid: 0,
-    // );
-
     _engine.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
@@ -400,7 +390,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onUserJoined:
             (RtcConnection connection, int remoteUid, int elapsed) async {
           debugPrint(
-              "remote user $remoteUid pagal  ${connection.channelId} ${connection.localUid}joined");
+              "remote user $remoteUid   ${connection.channelId} ${connection.localUid}joined");
           setState(() {
             _remoteUid = remoteUid;
           });
@@ -413,10 +403,10 @@ class _MyHomePageState extends State<MyHomePage> {
             UserOfflineReasonType reason) {
           debugPrint("remote user $remoteUid left channel 34");
           callDisconnect();
+          // initAgoraEngine();
         },
       ),
     );
-
     setState(() {
       isVideoCall = isVideoC;
       startCalling = true;
@@ -440,18 +430,32 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  Future<void> _dispose() async {
-    await _engine.leaveChannel();
-    await _engine.release();
-  }
-
   void callDisconnect() async {
+    await _engine.leaveChannel();
+    // await _engine.release();
     setState(() {
       _remoteUid = null;
       localUserJoined = false;
       startCalling = false;
       isVideoCall = true; // Reset to default call mode
     });
+    _engine = createAgoraRtcEngine();
+    await _engine.initialize(const RtcEngineContext(
+      appId: appId,
+      channelProfile: ChannelProfileType.channelProfileCommunication,
+    ));
+    await _engine.joinChannel(
+      token: token,
+      channelId: channel,
+      options: const ChannelMediaOptions(
+        autoSubscribeVideo: true,
+        autoSubscribeAudio: true,
+        publishCameraTrack: true,
+        publishMicrophoneTrack: true,
+        clientRoleType: ClientRoleType.clientRoleBroadcaster,
+      ),
+      uid: 0,
+    );
   }
 
   void voiceMute() async {
@@ -474,15 +478,10 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
+  // Video pause and resume
   void _videoToggle() async {
     if (isVideoCall) {
       isVideo = !isVideo;
-      if (isVideo) {
-        await _engine.enableVideo();
-        await _engine.startPreview();
-      } else {
-        await _engine.stopPreview();
-      }
     } else {
       isVideoCall = true;
       await _engine.enableVideo();
@@ -493,6 +492,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
+  // Call switch video to audio and vise versa
   void _toggleCallMode() async {
     isVideoCall = !isVideoCall;
     if (isVideoCall) {
